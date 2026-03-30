@@ -18,11 +18,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/johnkjohansen/teamknowl/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 var _ = Describe("KnowledgeBase Controller", func() {
@@ -96,6 +97,11 @@ var _ = Describe("KnowledgeBase Controller", func() {
 			service := &corev1.Service{}
 			Expect(k8sClient.Get(ctx, typeNamespacedName, service)).To(Succeed())
 			Expect(service.Spec.Ports[0].Port).To(Equal(int32(80)))
+
+			By("Verifying that the Ingress was created")
+			ingress := &networkingv1.Ingress{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, ingress)).To(Succeed())
+			Expect(ingress.Spec.Rules[0].Host).To(Equal("test-kb.ai-agents.private"))
 		})
 	})
 })

@@ -6,9 +6,7 @@ export default function Home() {
       {/* Sidebar - Navigation */}
       <aside className="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col">
         <div className="p-4 flex items-center gap-2 border-b border-slate-800">
-          <div className="w-8 h-8 rounded bg-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-            K
-          </div>
+          <img src="/logo.png" alt="Knowl" className="w-8 h-8 rounded" />
           <h1 className="font-bold text-slate-100 tracking-tight">TeamKnowl</h1>
         </div>
 

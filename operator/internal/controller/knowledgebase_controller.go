@@ -15,6 +15,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,6 +90,12 @@ func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Reconcile the Service.
 	if err := r.reconcileService(ctx, knowledgeBase); err != nil {
 		log.Error(err, "Failed to reconcile Service")
+		return ctrl.Result{}, err
+	}
+
+	// Reconcile the Ingress.
+	if err := r.reconcileIngress(ctx, knowledgeBase); err != nil {
+		log.Error(err, "Failed to reconcile Ingress")
 		return ctrl.Result{}, err
 	}
 
@@ -193,6 +200,50 @@ func (r *KnowledgeBaseReconciler) reconcileService(ctx context.Context, kb *core
 			},
 		}
 		return controllerutil.SetControllerReference(kb, service, r.Scheme)
+	})
+
+	return err
+}
+
+func (r *KnowledgeBaseReconciler) reconcileIngress(ctx context.Context, kb *corev1alpha1.KnowledgeBase) error {
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kb.Name,
+			Namespace: kb.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, ingress, func() error {
+		pathType := networkingv1.PathTypePrefix
+		host := fmt.Sprintf("%s.ai-agents.private", kb.Name)
+
+		ingress.Spec.Rules = []networkingv1.IngressRule{
+			{
+				Host: host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{
+							{
+								Path:     "/",
+								PathType: &pathType,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: kb.Name,
+										Port: networkingv1.ServiceBackendPort{
+											Number: 80,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Optional: Add TLS if cert-manager is in use.
+		// For now, we assume simple HTTP for the internal LAN.
+		return controllerutil.SetControllerReference(kb, ingress, r.Scheme)
 	})
 
 	return err
