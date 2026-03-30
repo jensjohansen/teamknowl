@@ -1,0 +1,16 @@
+apiVersion: core.teamknowl.io/v1alpha1
+kind: KnowledgeBase
+metadata:
+  name: e2e-knowledgebase
+  namespace: default
+spec:
+  repository:
+    repositoryUrl: "https://github.com/jensjohansen/teamknowl.git"
+    branchName: "main"
+  syncIntervalDuration: "1m"
+  userInterface:
+    enabled: true
+    theme: "dark"
+  api:
+    enabled: true
+    headlessMode: false

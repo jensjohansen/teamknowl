@@ -21,6 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1alpha1 "github.com/johnkjohansen/teamknowl/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var _ = Describe("KnowledgeBase Controller", func() {
@@ -82,6 +84,18 @@ var _ = Describe("KnowledgeBase Controller", func() {
 			Expect(updatedKB.Status.Conditions).To(HaveLen(1))
 			Expect(updatedKB.Status.Conditions[0].Type).To(Equal("Progressing"))
 			Expect(updatedKB.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+
+			By("Verifying that the Deployment was created")
+			deployment := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, deployment)).To(Succeed())
+			Expect(deployment.Spec.Template.Spec.Containers).To(HaveLen(2))
+			Expect(deployment.Spec.Template.Spec.Containers[0].Name).To(Equal("api"))
+			Expect(deployment.Spec.Template.Spec.Containers[1].Name).To(Equal("git-sync"))
+
+			By("Verifying that the Service was created")
+			service := &corev1.Service{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, service)).To(Succeed())
+			Expect(service.Spec.Ports[0].Port).To(Equal(int32(80)))
 		})
 	})
 })
