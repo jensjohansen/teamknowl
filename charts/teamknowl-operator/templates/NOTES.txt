@@ -1,0 +1,2 @@
+TeamKnowl Operator has been installed.
+Documentation: https://github.com/johnkjohansen/teamknowl

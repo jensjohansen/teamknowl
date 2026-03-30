@@ -1,0 +1,9 @@
+apiVersion: core.teamknowl.io/v1alpha1
+kind: KnowledgeBase
+metadata:
+  labels:
+    app.kubernetes.io/name: teamknowl
+    app.kubernetes.io/managed-by: kustomize
+  name: knowledgebase-sample
+spec:
+  # TODO(user): Add fields here
