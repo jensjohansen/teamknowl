@@ -23,6 +23,20 @@
 - **UI**: Next.js + Tailwind CSS dashboard for humans.
 - **Helm**: Production-ready deployment charts.
 
+## 📦 Build & Run
+
+To build all components locally:
+
+```bash
+docker compose build
+```
+
+To run the full stack (API + UI):
+
+```bash
+docker compose up -d
+```
+
 ## 📄 License
 
 MIT License - Copyright (c) 2026 John K Johansen

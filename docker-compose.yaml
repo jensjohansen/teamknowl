@@ -1,0 +1,28 @@
+services:
+  operator:
+    build:
+      context: ./operator
+      dockerfile: Dockerfile
+    image: harbor.ai-agents.private/teamknowl/operator:latest
+    environment:
+      - WATCH_NAMESPACE=
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: harbor.ai-agents.private/teamknowl/api:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docs:/docs:ro
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    image: harbor.ai-agents.private/teamknowl/ui:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
