@@ -66,6 +66,9 @@ ingress:
 httpRoute:
   enabled: false
 
+networkPolicy:
+  enabled: true
+
 # Configuration for the operator
 controller:
   # The image for the API sidecar that the operator will deploy

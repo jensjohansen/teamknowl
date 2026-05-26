@@ -51,7 +51,10 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting TeamKnowl API...");
 
-    let bucket = std::env::var("TEAMKNOWL_BUCKET").unwrap_or_else(|_| "teamknowl-notes".to_string());
+    let bucket = std::env::var("S3_BUCKET")
+        .or_else(|_| std::env::var("TEAMKNOWL_BUCKET"))
+        .unwrap_or_else(|_| "teamknowl-notes".to_string());
+    
     let index_path =
         std::env::var("TEAMKNOWL_INDEX_PATH").unwrap_or_else(|_| "data/index".to_string());
 
@@ -72,8 +75,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/batch/context", post(batch_get_context))
         .with_state(state);
 
-    // Run it with hyper on localhost:3000
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    // Run it with hyper on localhost:8080
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     info!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

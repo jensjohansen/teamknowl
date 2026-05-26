@@ -1,0 +1,63 @@
+# File: charts/teamknowl/templates/network-policy.yaml
+# Purpose: Defines NetworkPolicies for TeamKnowl components.
+# Product/business importance: Ensures security hardening by restricting traffic to authorized channels.
+#
+# Copyright (c) 2026 John K Johansen
+# License: MIT (see LICENSE)
+
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "teamknowl-operator.fullname" . }}-deny-all
+  labels:
+    {{- include "teamknowl-operator.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "teamknowl-operator.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "teamknowl-operator.fullname" . }}-allow-essential
+  labels:
+    {{- include "teamknowl-operator.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "teamknowl-operator.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "teamknowl-operator.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 8080
+    - protocol: TCP
+      port: 8081
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 443
+{{- end }}

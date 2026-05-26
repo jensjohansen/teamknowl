@@ -40,7 +40,7 @@ type KnowledgeBaseReconciler struct {
 // +kubebuilder:rbac:groups=core.teamknowl.io,resources=knowledgebases/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;secrets;configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses;networkpolicies,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile coordinates the cluster state with the desired KnowledgeBase specification.
 func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -104,6 +104,12 @@ func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Reconcile the Ingress.
 	if err := r.reconcileIngress(ctx, knowledgeBase); err != nil {
 		log.Error(err, "Failed to reconcile Ingress")
+		return ctrl.Result{}, err
+	}
+
+	// Reconcile the NetworkPolicy.
+	if err := r.reconcileNetworkPolicy(ctx, knowledgeBase); err != nil {
+		log.Error(err, "Failed to reconcile NetworkPolicy")
 		return ctrl.Result{}, err
 	}
 
@@ -198,8 +204,8 @@ func (r *KnowledgeBaseReconciler) reconcileDeployment(ctx context.Context, kb *c
 		},
 	}
 
-	apiImage := getEnv("API_IMAGE", "harbor.ai-agents.private/teamknowl/api:v1.0.1")
-	uiImage := getEnv("UI_IMAGE", "harbor.ai-agents.private/teamknowl/ui:v1.0.1")
+	apiImage := getEnv("API_IMAGE", "harbor.ai-agents.private/teamknowl/api:latest")
+	uiImage := getEnv("UI_IMAGE", "harbor.ai-agents.private/teamknowl/ui:latest")
 	syncImage := getEnv("GIT_SYNC_IMAGE", "registry.k8s.io/git-sync/git-sync:v4.2.3")
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
@@ -417,6 +423,107 @@ func (r *KnowledgeBaseReconciler) reconcileIngress(ctx context.Context, kb *core
 	})
 
 	return err
+}
+
+func (r *KnowledgeBaseReconciler) reconcileNetworkPolicy(ctx context.Context, kb *corev1alpha1.KnowledgeBase) error {
+	networkPolicy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kb.Name,
+			Namespace: kb.Namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, networkPolicy, func() error {
+		labels := map[string]string{
+			"app":      "teamknowl",
+			"instance": kb.Name,
+		}
+		networkPolicy.Spec.PodSelector = metav1.LabelSelector{
+			MatchLabels: labels,
+		}
+		networkPolicy.Spec.PolicyTypes = []networkingv1.PolicyType{
+			networkingv1.PolicyTypeIngress,
+			networkingv1.PolicyTypeEgress,
+		}
+
+		// Allow ingress from the same namespace (UI to API) and from Ingress Controller.
+		networkPolicy.Spec.Ingress = []networkingv1.NetworkPolicyIngressRule{
+			{
+				From: []networkingv1.NetworkPolicyPeer{
+					{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: labels,
+						},
+					},
+					{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubernetes.io/metadata.name": "ingress-nginx",
+							},
+						},
+					},
+				},
+				Ports: []networkingv1.NetworkPolicyPort{
+					{
+						Protocol: ptrProto(corev1.ProtocolTCP),
+						Port:     ptrIntStr(8080),
+					},
+					{
+						Protocol: ptrProto(corev1.ProtocolTCP),
+						Port:     ptrIntStr(3000),
+					},
+				},
+			},
+		}
+
+		// Allow egress to DNS and potentially S3/Git.
+		networkPolicy.Spec.Egress = []networkingv1.NetworkPolicyEgressRule{
+			{
+				To: []networkingv1.NetworkPolicyPeer{
+					{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubernetes.io/metadata.name": "kube-system",
+							},
+						},
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"k8s-app": "kube-dns",
+							},
+						},
+					},
+				},
+				Ports: []networkingv1.NetworkPolicyPort{
+					{
+						Protocol: ptrProto(corev1.ProtocolUDP),
+						Port:     ptrIntStr(53),
+					},
+				},
+			},
+			{
+				To: []networkingv1.NetworkPolicyPeer{
+					{
+						IPBlock: &networkingv1.IPBlock{
+							CIDR: "0.0.0.0/0",
+						},
+					},
+				},
+			},
+		}
+
+		return controllerutil.SetControllerReference(kb, networkPolicy, r.Scheme)
+	})
+
+	return err
+}
+
+func ptrProto(p corev1.Protocol) *corev1.Protocol {
+	return &p
+}
+
+func ptrIntStr(p int) *intstr.IntOrString {
+	i := intstr.FromInt(p)
+	return &i
 }
 
 // SetupWithManager sets up the controller with the Manager.
