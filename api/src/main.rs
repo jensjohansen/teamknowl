@@ -6,13 +6,14 @@
 //! License: MIT
 
 use api::index::SearchIndex;
-use api::storage::StorageClient;
 use api::resolution::ContextResolver;
+use api::storage::StorageClient;
 use axum::{
     extract::{Path as AxumPath, State},
-    routing::get,
-    Router,
+    routing::{get, post},
+    Json, Router,
 };
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -24,6 +25,23 @@ struct AppState {
     #[allow(dead_code)]
     index: SearchIndex,
     resolver: ContextResolver,
+}
+
+#[derive(Deserialize)]
+struct BatchContextRequest {
+    note_ids: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct BatchContextResponse {
+    results: Vec<NoteContext>,
+}
+
+#[derive(Serialize)]
+struct NoteContext {
+    id: String,
+    content: Option<String>,
+    error: Option<String>,
 }
 
 #[tokio::main]
@@ -51,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/v1/context/:note_id", get(get_context))
+        .route("/v1/batch/context", post(batch_get_context))
         .with_state(state);
 
     // Run it with hyper on localhost:3000
@@ -76,4 +95,34 @@ async fn get_context(
         .resolve_flat_context(&state.storage, &note_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+async fn batch_get_context(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<BatchContextRequest>,
+) -> Json<BatchContextResponse> {
+    let results = state
+        .resolver
+        .resolve_batch_context(&state.storage, payload.note_ids)
+        .await;
+
+    let formatted_results = results
+        .into_iter()
+        .map(|(id, res)| match res {
+            Ok(content) => NoteContext {
+                id,
+                content: Some(content),
+                error: None,
+            },
+            Err(e) => NoteContext {
+                id,
+                content: None,
+                error: Some(e.to_string()),
+            },
+        })
+        .collect();
+
+    Json(BatchContextResponse {
+        results: formatted_results,
+    })
 }

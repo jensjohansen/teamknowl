@@ -8,10 +8,14 @@
 use anyhow::Result;
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::Client;
+use lru::LruCache;
+use std::num::NonZeroUsize;
+use tokio::sync::Mutex;
 
 pub struct StorageClient {
     client: Client,
     bucket: String,
+    cache: Mutex<LruCache<String, String>>,
 }
 
 impl StorageClient {
@@ -23,10 +27,26 @@ impl StorageClient {
             .await;
         let client = Client::new(&config);
 
-        Ok(Self { client, bucket })
+        // Initialize LRU cache with a capacity of 1000 items
+        let cache = Mutex::new(LruCache::new(NonZeroUsize::new(1000).unwrap()));
+
+        Ok(Self {
+            client,
+            bucket,
+            cache,
+        })
     }
 
     pub async fn get_object(&self, key: &str) -> Result<String> {
+        // 1. Check cache
+        {
+            let mut cache = self.cache.lock().await;
+            if let Some(content) = cache.get(key) {
+                return Ok(content.clone());
+            }
+        }
+
+        // 2. Fetch from S3
         let resp = self
             .client
             .get_object()
@@ -36,6 +56,14 @@ impl StorageClient {
             .await?;
 
         let data = resp.body.collect().await?.into_bytes();
-        Ok(String::from_utf8(data.to_vec())?)
+        let content = String::from_utf8(data.to_vec())?;
+
+        // 3. Update cache
+        {
+            let mut cache = self.cache.lock().await;
+            cache.put(key.to_string(), content.clone());
+        }
+
+        Ok(content)
     }
 }

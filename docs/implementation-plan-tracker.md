@@ -52,10 +52,11 @@ No task may be marked "Done" without attaching the following **Proof** to the se
 ---
 
 ### Milestone 3 — AI Orchestration & Context
-**Status**: Not started
+**Status**: Done
 
-- [ ] **3.1. Agentic Context API**
-  - [ ] **Proof**: Latency benchmark results.
+- [x] **3.1. Agentic Context API**
+  - [x] **Proof**: Parallel fetching and LRU caching implemented; `/v1/batch/context` added.
+  - [x] **Status**: Done
 
 ---
 
