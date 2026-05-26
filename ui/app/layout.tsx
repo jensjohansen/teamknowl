@@ -1,3 +1,12 @@
+/**
+ * File: teamknowl/ui/app/layout.tsx
+ * Purpose: Root layout for the TeamKnowl UI application.
+ * Product/business importance: Sets the foundational styling and metadata for the knowledge base.
+ * 
+ * Copyright (c) 2026 John K Johansen
+ * License: MIT
+ */
+
 import type { Metadata } from "next";
 import "./globals.css";
 

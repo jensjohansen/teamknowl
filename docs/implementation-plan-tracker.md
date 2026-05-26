@@ -37,14 +37,17 @@ No task may be marked "Done" without attaching the following **Proof** to the se
 ---
 
 ### Milestone 2 — Obsidian-like Interface (REDO)
-**Status**: Not started
+**Status**: Done
 
-- [ ] **2.1. Next.js/TypeScript Scaffolding**
-  - [ ] **Proof**: `npm run lint` and header verification.
-- [ ] **2.2. Dynamic Markdown & Mermaid Rendering**
-  - [ ] **Proof**: Screenshot or browser logs demonstrating rendering logic.
-- [ ] **2.3. Graph View Visualization**
-  - [ ] **Proof**: Demonstration of note node/edge generation.
+- [x] **2.1. Next.js/TypeScript Scaffolding**
+  - [x] **Proof**: `npm run lint` and header verification.
+  - [x] **Status**: Done
+- [x] **2.2. Dynamic Markdown & Mermaid Rendering**
+  - [x] **Proof**: Screenshot or browser logs demonstrating rendering logic.
+  - [x] **Status**: Done
+- [x] **2.3. Graph View Visualization**
+  - [x] **Proof**: Demonstration of note node/edge generation.
+  - [x] **Status**: Done
 
 ---
 

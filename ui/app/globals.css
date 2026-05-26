@@ -1,3 +1,12 @@
+/*
+ * File: teamknowl/ui/app/globals.css
+ * Purpose: Global styles and Tailwind directives for TeamKnowl.
+ * Product/business importance: Ensures consistent visual branding and layout.
+ * 
+ * Copyright (c) 2026 John K Johansen
+ * License: MIT
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
