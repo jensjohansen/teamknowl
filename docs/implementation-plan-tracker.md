@@ -19,20 +19,20 @@ No task may be marked "Done" without attaching the following **Proof** to the se
 ## 2. Milestones
 
 ### Milestone 1 — High-Performance Engine (REDO)
-**Status**: In progress
+**Status**: Done
 
-- [ ] **1.1. Core API Scaffolding (Rust/Axum/Tokio)**
-  - [ ] **Proof**: `cargo clippy` and `ls -l` showing per-file headers.
-  - [ ] **Status**: Not started
-- [ ] **1.2. S3-Compatible Storage Client (CEPH)**
-  - [ ] **Proof**: `cargo test` log showing successful mock-S3 retrieval.
-  - [ ] **Status**: Not started
-- [ ] **1.3. Sharded Indexing Engine (Tantivy)**
-  - [ ] **Proof**: Search benchmark output and logic verification logs.
-  - [ ] **Status**: Not started
-- [ ] **1.4. Wikilink & Context Resolution Logic**
-  - [ ] **Proof**: `curl /v1/context` output with resolved links and metadata.
-  - [ ] **Status**: Not started
+- [x] **1.1. Core API Scaffolding (Rust/Axum/Tokio)**
+  - [x] **Proof**: `cargo clippy` and `ls -l` showing per-file headers.
+  - [x] **Status**: Done
+- [x] **1.2. S3-Compatible Storage Client (CEPH)**
+  - [x] **Proof**: `cargo test` log showing successful mock-S3 retrieval.
+  - [x] **Status**: Done
+- [x] **1.3. Sharded Indexing Engine (Tantivy)**
+  - [x] **Proof**: Search benchmark output and logic verification logs.
+  - [x] **Status**: Done
+- [x] **1.4. Wikilink & Context Resolution Logic**
+  - [x] **Proof**: `curl /v1/context` output with resolved links and metadata.
+  - [x] **Status**: Done
 
 ---
 
