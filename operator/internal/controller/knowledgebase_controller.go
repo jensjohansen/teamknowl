@@ -12,6 +12,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +39,8 @@ type KnowledgeBaseReconciler struct {
 // +kubebuilder:rbac:groups=core.teamknowl.io,resources=knowledgebases/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core.teamknowl.io,resources=knowledgebases/finalizers,verbs=update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=services;secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services;secrets;configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile coordinates the cluster state with the desired KnowledgeBase specification.
 func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -81,6 +83,12 @@ func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
+	// Reconcile the harbor-global-pull secret.
+	if err := r.reconcileGlobalPullSecret(ctx, knowledgeBase); err != nil {
+		log.Error(err, "Failed to reconcile harbor-global-pull secret")
+		return ctrl.Result{}, err
+	}
+
 	// Reconcile the Deployment.
 	if err := r.reconcileDeployment(ctx, knowledgeBase); err != nil {
 		log.Error(err, "Failed to reconcile Deployment")
@@ -113,6 +121,75 @@ func (r *KnowledgeBaseReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
+func (r *KnowledgeBaseReconciler) reconcileGlobalPullSecret(ctx context.Context, kb *corev1alpha1.KnowledgeBase) error {
+	log := log.FromContext(ctx)
+
+	// Define the source and target names.
+	sourceNamespace := "ai-models"
+	secretName := "harbor-global-pull"
+
+	// Check if the secret already exists in the target namespace.
+	targetSecret := &corev1.Secret{}
+	err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: kb.Namespace}, targetSecret)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	// Fetch the source secret.
+	sourceSecret := &corev1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: sourceNamespace}, sourceSecret); err != nil {
+		if apierrors.IsNotFound(err) {
+			log.Info("Source harbor-global-pull secret not found in ai-models namespace, skipping copy")
+			return nil
+		}
+		return err
+	}
+
+	if err == nil {
+		// Secret exists, check if it needs update.
+		// We use reflect.DeepEqual or just check the data.
+		sourceData := string(sourceSecret.Data[".dockerconfigjson"])
+		targetData := string(targetSecret.Data[".dockerconfigjson"])
+
+		if sourceData == targetData {
+			// Already in sync.
+			return nil
+		}
+
+		log.Info("Updating harbor-global-pull secret to match ai-models source", "namespace", kb.Namespace)
+		targetSecret.Data = sourceSecret.Data
+		targetSecret.Type = sourceSecret.Type
+		return r.Update(ctx, targetSecret)
+	}
+
+	// Create the new secret in the target namespace.
+	newSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: kb.Namespace,
+		},
+		Type: sourceSecret.Type,
+		Data: sourceSecret.Data,
+	}
+
+	log.Info("Copying harbor-global-pull secret from ai-models to target namespace", "namespace", kb.Namespace)
+	if err := r.Create(ctx, newSecret); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
+}
+
 func (r *KnowledgeBaseReconciler) reconcileDeployment(ctx context.Context, kb *corev1alpha1.KnowledgeBase) error {
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -121,11 +198,14 @@ func (r *KnowledgeBaseReconciler) reconcileDeployment(ctx context.Context, kb *c
 		},
 	}
 
+	apiImage := getEnv("API_IMAGE", "harbor.ai-agents.private/teamknowl/api:v1.0.1")
+	uiImage := getEnv("UI_IMAGE", "harbor.ai-agents.private/teamknowl/ui:v1.0.1")
+	syncImage := getEnv("GIT_SYNC_IMAGE", "registry.k8s.io/git-sync/git-sync:v4.2.3")
+
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deployment, func() error {
 		labels := map[string]string{
 			"app":       "teamknowl",
 			"instance":  kb.Name,
-			"component": "api",
 		}
 		deployment.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: labels,
@@ -136,7 +216,7 @@ func (r *KnowledgeBaseReconciler) reconcileDeployment(ctx context.Context, kb *c
 		// Container 1: The TeamKnowl API.
 		apiContainer := corev1.Container{
 			Name:  "api",
-			Image: "ghcr.io/johnkjohansen/teamknowl-api:latest",
+			Image: apiImage,
 			Ports: []corev1.ContainerPort{{ContainerPort: 8080}},
 			Env: []corev1.EnvVar{
 				{Name: "DOCS_DIR", Value: "/docs"},
@@ -150,20 +230,103 @@ func (r *KnowledgeBaseReconciler) reconcileDeployment(ctx context.Context, kb *c
 		// Container 2: Git-Sync Sidecar.
 		syncContainer := corev1.Container{
 			Name:  "git-sync",
-			Image: "registry.k8s.io/git-sync/git-sync:v4.2.3",
+			Image: syncImage,
 			Args: []string{
 				fmt.Sprintf("--repo=%s", kb.Spec.Repository.RepositoryURL),
-				fmt.Sprintf("--branch=%s", kb.Spec.Repository.BranchName),
+				fmt.Sprintf("--ref=%s", kb.Spec.Repository.BranchName),
 				"--root=/docs",
-				"--dest=repo",
-				"--wait=30", // Sync every 30 seconds for dev/test
+				"--link=repo",
+				"--period=30s",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "docs", MountPath: "/docs"},
 			},
 		}
 
-		deployment.Spec.Template.Spec.Containers = []corev1.Container{apiContainer, syncContainer}
+		// Handle Git-Sync Authentication.
+		if kb.Spec.Repository.CredentialsSecretReference != "" {
+			syncContainer.Env = append(syncContainer.Env,
+				corev1.EnvVar{
+					Name: "GIT_SYNC_USERNAME",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: kb.Spec.Repository.CredentialsSecretReference,
+							},
+							Key: "username",
+						},
+					},
+				},
+				corev1.EnvVar{
+					Name: "GIT_SYNC_PASSWORD",
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: kb.Spec.Repository.CredentialsSecretReference,
+							},
+							Key: "password",
+						},
+					},
+				},
+			)
+		}
+
+		// Handle API/UI Storage configuration.
+		// If using S3, we need to pass credentials to the API.
+		if kb.Spec.Storage.Provider == "s3" && kb.Spec.Storage.S3Config != nil {
+			apiContainer.Env = append(apiContainer.Env,
+				corev1.EnvVar{Name: "STORAGE_PROVIDER", Value: "s3"},
+				corev1.EnvVar{Name: "S3_ENDPOINT", Value: kb.Spec.Storage.S3Config.Endpoint},
+				corev1.EnvVar{Name: "S3_BUCKET", Value: kb.Spec.Storage.S3Config.BucketName},
+			)
+
+			if kb.Spec.Storage.S3Config.CredentialsSecretName != "" {
+				apiContainer.Env = append(apiContainer.Env,
+					corev1.EnvVar{
+						Name: "S3_ACCESS_KEY",
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: kb.Spec.Storage.S3Config.CredentialsSecretName,
+								},
+								Key: "accessKey",
+							},
+						},
+					},
+					corev1.EnvVar{
+						Name: "S3_SECRET_KEY",
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: kb.Spec.Storage.S3Config.CredentialsSecretName,
+								},
+								Key: "secretKey",
+							},
+						},
+					},
+				)
+			}
+		}
+
+		containers := []corev1.Container{apiContainer, syncContainer}
+
+		// Container 3: The UI (if enabled).
+		if kb.Spec.UserInterface.Enabled {
+			uiContainer := corev1.Container{
+				Name:  "ui",
+				Image: uiImage,
+				Ports: []corev1.ContainerPort{{ContainerPort: 3000}},
+				Env: []corev1.EnvVar{
+					{Name: "NEXT_PUBLIC_API_URL", Value: "http://localhost:8080"},
+				},
+			}
+			containers = append(containers, uiContainer)
+		}
+
+		deployment.Spec.Template.Spec.Containers = containers
+		deployment.Spec.Template.Spec.ImagePullSecrets = []corev1.LocalObjectReference{
+			{Name: "harbor-global-pull"},
+		}
 		deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
 			{
 				Name: "docs",
@@ -194,8 +357,15 @@ func (r *KnowledgeBaseReconciler) reconcileService(ctx context.Context, kb *core
 		}
 		service.Spec.Ports = []corev1.ServicePort{
 			{
+				Name:       "ui",
 				Protocol:   corev1.ProtocolTCP,
 				Port:       80,
+				TargetPort: intstr.FromInt(3000),
+			},
+			{
+				Name:       "api",
+				Protocol:   corev1.ProtocolTCP,
+				Port:       8080,
 				TargetPort: intstr.FromInt(8080),
 			},
 		}
@@ -230,7 +400,7 @@ func (r *KnowledgeBaseReconciler) reconcileIngress(ctx context.Context, kb *core
 									Service: &networkingv1.IngressServiceBackend{
 										Name: kb.Name,
 										Port: networkingv1.ServiceBackendPort{
-											Number: 80,
+											Name: "ui",
 										},
 									},
 								},

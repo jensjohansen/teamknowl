@@ -1,0 +1,39 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "teamknowl-operator.fullname" . }}-manager-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets", "services", "configmaps", "events"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["core.teamknowl.io"]
+  resources: ["knowledgebases"]
+  verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+- apiGroups: ["core.teamknowl.io"]
+  resources: ["knowledgebases/finalizers"]
+  verbs: ["update"]
+- apiGroups: ["core.teamknowl.io"]
+  resources: ["knowledgebases/status"]
+  verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "teamknowl-operator.fullname" . }}-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "teamknowl-operator.fullname" . }}-manager-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "teamknowl-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

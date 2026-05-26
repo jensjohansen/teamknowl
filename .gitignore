@@ -25,3 +25,7 @@ Thumbs.db
 
 # Project specific
 assets/dashboard.png
+
+# Rust
+target/
+api/target/

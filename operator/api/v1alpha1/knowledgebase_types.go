@@ -55,11 +55,42 @@ type APIConfig struct {
 	HeadlessMode bool `json:"headlessMode"`
 }
 
+// S3Config defines the settings for an external S3-compatible storage backend.
+type S3Config struct {
+	// Endpoint is the URL of the S3-compatible service (e.g., "http://ceph-s3.local").
+	// +required
+	Endpoint string `json:"endpoint"`
+
+	// BucketName specifies the target S3 bucket for storing knowledge artifacts.
+	// +required
+	BucketName string `json:"bucketName"`
+
+	// CredentialsSecretName points to a Secret containing ACCESS_KEY and SECRET_KEY.
+	// +optional
+	CredentialsSecretName string `json:"credentialsSecretName,omitempty"`
+}
+
+// StorageConfig defines where knowledge artifacts are persisted and retrieved from.
+type StorageConfig struct {
+	// Provider specifies the storage backend ("local", "s3", "pvc").
+	// +kubebuilder:validation:Enum=local;s3;pvc
+	// +kubebuilder:default=local
+	Provider string `json:"provider"`
+
+	// S3Config holds settings for the S3 provider.
+	// +optional
+	S3Config *S3Config `json:"s3Config,omitempty"`
+}
+
 // KnowledgeBaseSpec defines the desired state of a TeamKnowl KnowledgeBase.
 type KnowledgeBaseSpec struct {
 	// Repository holds the Git-sync configuration for this instance.
 	// +required
 	Repository RepositoryConfig `json:"repository"`
+
+	// Storage defines how knowledge base artifacts are stored and indexed.
+	// +optional
+	Storage StorageConfig `json:"storage"`
 
 	// SyncIntervalDuration specifies how often the operator should pull updates from the Git repository (e.g., "5m").
 	// +optional

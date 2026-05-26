@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "teamknowl-operator.fullname" . }}
+  labels:
+    {{- include "teamknowl-operator.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "teamknowl-operator.selectorLabels" . | nindent 4 }}

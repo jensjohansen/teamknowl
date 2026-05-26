@@ -44,8 +44,8 @@ License: MIT (see LICENSE)
 ```
 
 ### 1.4. Language-Specific Guidelines
-- **Go**: Primary language for the **Operator, API Gateway, and AI Orchestration**. Focus on high-concurrency via goroutines and idiomatic error handling. Use `golangci-lint`.
-- **Rust**: Primary language for the **Indexing Engine and performance-critical data processing**. Follow `clippy` and `rustfmt` standards.
+- **Go**: Primary language for the **Operator**. Focus on high-concurrency via goroutines and idiomatic error handling. Use `golangci-lint`.
+- **Rust (Axum/Tokio)**: Primary language for the **API Service, Indexing Engine, and AI Orchestration**. Required for high-performance concurrency and safety without a GIL. Follow `clippy` and `rustfmt` standards.
 - **TypeScript**: Used for the **Web UI and IDE Extensions**. Enforce `eslint` and `prettier`.
 
 ## 2. Security Best Practices

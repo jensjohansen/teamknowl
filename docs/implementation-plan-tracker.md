@@ -1,81 +1,65 @@
-# TeamKnowl — Implementation Plan / Tracker
+# TeamKnowl — Implementation Plan / Tracker (REDO)
 
-## 1. Purpose
-This document is the core project planner for TeamKnowl implementation. It tracks delivery of milestones in the sequence defined by the PRD and Technical Design.
+## 1. Tracker Conventions
+### 1.1. Status Values
+- **Not started**: Task initialized but not touched.
+- **In progress**: Active work on task.
+- **Blocked**: Waiting on external resolution.
+- **Done**: Proof attached and verified.
 
-## 2. Tracker Conventions
-### 2.1. Status Values
-- Not started
-- In progress
-- Blocked
-- Done
-
-### 2.2. Quality Gates
-- All code must pass `docs/standards.md` before pushing.
-- Per-file headers are mandatory.
-- Unambiguous naming and narrative style are required.
-
-## 3. Milestones
-
-### Milestone 0 — PRD + Architecture + Standards Baseline
-**Status**: Done
-
-- [x] Publish `docs/prd.md` and record approval
-- [x] Create Technical Design doc (`docs/technical-design.md`)
-- [x] Document coding standards and Definition of Done (`docs/standards.md`)
-- [x] Initialize project tracker (`docs/implementation-plan-tracker.md`)
+### 1.2. Quality Gate Protocol
+No task may be marked "Done" without attaching the following **Proof** to the session:
+1. **Standards Compliance**: Verification that `docs/standards.md` (Headers, Naming) is followed.
+2. **Static Analysis**: Successful `cargo clippy` (Rust) or `npm run lint` (UI) logs.
+3. **Logic Verification**: `cargo test` or `curl` responses showing real (non-mocked) output.
+4. **Contract Adherence**: Explicit confirmation that the implementation matches the PRD/Technical Design.
 
 ---
 
-### Milestone 1 — K8s Operator Scaffolding
-**Status**: Not started
+## 2. Milestones
 
-- [ ] Initialize Kubebuilder project in `operator/`
-- [ ] Define `KnowledgeBase` CRD v1alpha1
-- [ ] Implement basic controller reconciliation loop (Status only)
-- [ ] Add unit tests for CRD validation
+### Milestone 1 — High-Performance Engine (REDO)
+**Status**: In progress
 
----
-
-### Milestone 2 — Git-Sync Integration
-**Status**: Not started
-
-- [ ] Integrate `git-sync` as a sidecar in the KB deployment
-- [ ] Implement Secret-based authentication for private Git repos
-- [ ] Verify bidirectional sync (Pull from repo, local FS write)
-
----
-
-### Milestone 3 — Core API & Indexing
-**Status**: Not started
-
-- [ ] Develop Go-based API for listing/reading Markdown files
-- [ ] Implement Bleve in-memory indexing for full-text search
-- [ ] Add [[Wikilink]] resolution logic to the API
+- [ ] **1.1. Core API Scaffolding (Rust/Axum/Tokio)**
+  - [ ] **Proof**: `cargo clippy` and `ls -l` showing per-file headers.
+  - [ ] **Status**: Not started
+- [ ] **1.2. S3-Compatible Storage Client (CEPH)**
+  - [ ] **Proof**: `cargo test` log showing successful mock-S3 retrieval.
+  - [ ] **Status**: Not started
+- [ ] **1.3. Sharded Indexing Engine (Tantivy)**
+  - [ ] **Proof**: Search benchmark output and logic verification logs.
+  - [ ] **Status**: Not started
+- [ ] **1.4. Wikilink & Context Resolution Logic**
+  - [ ] **Proof**: `curl /v1/context` output with resolved links and metadata.
+  - [ ] **Status**: Not started
 
 ---
 
-### Milestone 4 — Obsidian-like Web UI
+### Milestone 2 — Obsidian-like Interface (REDO)
 **Status**: Not started
 
-- [ ] Scaffold React/Next.js frontend
-- [ ] Implement Markdown rendering with syntax highlighting
-- [ ] Add Graph View visualization for backlinks
+- [ ] **2.1. Next.js/TypeScript Scaffolding**
+  - [ ] **Proof**: `npm run lint` and header verification.
+- [ ] **2.2. Dynamic Markdown & Mermaid Rendering**
+  - [ ] **Proof**: Screenshot or browser logs demonstrating rendering logic.
+- [ ] **2.3. Graph View Visualization**
+  - [ ] **Proof**: Demonstration of note node/edge generation.
 
 ---
 
-### Milestone 5 — AI Agentic API
+### Milestone 3 — AI Orchestration & Context
 **Status**: Not started
 
-- [ ] Implement `/v1/context` endpoint for flat context retrieval
-- [ ] Implement automatic YAML frontmatter injection for AI metadata
-- [ ] Create Python-based CLI for AI agents to interact with TeamKnowl
+- [ ] **3.1. Agentic Context API**
+  - [ ] **Proof**: Latency benchmark results.
 
 ---
 
-### Milestone 6 — Helm Chart & Production Hardening
+### Milestone 4 — Production-Ready & Helm
 **Status**: Not started
 
-- [ ] Create comprehensive Helm chart for TeamKnowl Operator
-- [ ] Implement NetworkPolicies and RBAC security hardening
-- [ ] Finalize documentation and Open Source release baseline
+- [ ] **4.1. Helm Chart REDO**
+  - [ ] **Proof**: `helm lint` and `kubectl get pods` logs.
+- [ ] **4.2. Security Hardening**
+  - [ ] **Proof**: NetworkPolicy test logs.

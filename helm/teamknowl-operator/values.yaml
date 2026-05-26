@@ -1,0 +1,76 @@
+# Default values for teamknowl-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: harbor.ai-agents.private/teamknowl/operator
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets:
+  - name: harbor-pull-secret
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "teamknowl-operator-sa"
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: false
+
+httpRoute:
+  enabled: false
+
+# Configuration for the operator
+controller:
+  # The image for the API sidecar that the operator will deploy
+  apiImage: "harbor.ai-agents.private/teamknowl/api:latest"
+  # The image for the UI sidecar that the operator will deploy
+  uiImage: "harbor.ai-agents.private/teamknowl/ui:latest"
+  # The image for git-sync sidecar
+  gitSyncImage: "registry.k8s.io/git-sync/git-sync:v4.2.3"

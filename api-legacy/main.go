@@ -17,7 +17,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	_ "teamknowl/api/docs"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
+
+// @title TeamKnowl API
+// @version 1.0
+// @description agent-friendly API for serving Markdown documentation.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name John K Johansen
+// @contact.url http://johnkjohansen.com
+
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+
+// @host localhost:8080
+// @BasePath /
 
 // Config holds the API configuration.
 type Config struct {
@@ -41,19 +59,34 @@ func main() {
 	http.HandleFunc("/v1/context", getContext(config))
 	http.HandleFunc("/healthz", healthCheck)
 
+	// Swagger documentation
+	http.Handle("/swagger/", httpSwagger.WrapHandler)
+
 	log.Printf("TeamKnowl API starting on port %s, serving from %s", config.Port, config.DocsDir)
+	log.Printf("Swagger UI available at http://localhost:%s/swagger/index.html", config.Port)
 	if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
 
 // listFiles returns a list of all Markdown files in the configured directory.
+// @Summary List documentation files
+// @Description get all markdown files available in the knowledge base
+// @Tags documentation
+// @Accept  json
+// @Produce  json
+// @Success 200 {array} FileInfo
+// @Router /v1/list [get]
 func listFiles(cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var files []FileInfo
 		err := filepath.Walk(cfg.DocsDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
+			}
+			// Skip hidden directories (except .worktrees which git-sync uses)
+			if info.IsDir() && strings.HasPrefix(info.Name(), ".") && info.Name() != ".worktrees" {
+				return filepath.SkipDir
 			}
 			if !info.IsDir() && strings.HasSuffix(info.Name(), ".md") {
 				relPath, _ := filepath.Rel(cfg.DocsDir, path)
@@ -76,6 +109,15 @@ func listFiles(cfg Config) http.HandlerFunc {
 }
 
 // getContext returns the content of a specific Markdown file for AI context.
+// @Summary Get documentation context
+// @Description get the full markdown content of a specific file
+// @Tags documentation
+// @Accept  json
+// @Produce  plain
+// @Param path query string true "Relative path to the markdown file"
+// @Success 200 {string} string "Markdown content"
+// @Failure 404 {string} string "File not found"
+// @Router /v1/context [get]
 func getContext(cfg Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filePath := r.URL.Query().Get("path")
